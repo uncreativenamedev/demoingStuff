@@ -4,6 +4,7 @@
 
 enum InstructionGroupType0 {
 	InstructionGroupType0_undefined,
+	InstructionGroupType0_comment,
 	InstructionGroupType0_exitFile,
 	InstructionGroupType0_preprocessorDirective
 };
@@ -15,14 +16,14 @@ enum InstructionGroupType1 {
 };
 
 enum InstructionType {
-	InstructionType_undefined
+	
 };
 
 struct LineText {
 	uint8_t instructionGroupTypeText[2]; //see README.md
 	uint8_t instructionTypeText[1024]; //the type of the instruction. see README.md
 	uint8_t argumentLengthText; //the number of arguments, max 9
-	uint8_t argumentTypeLocationIndexText[1024]; //0: argument type is local to the program, other: found in the includedType file
+	uint8_t argumentTypeLocationIndexText[9][1024]; //0: argument type is local to the program, other: found in the includedType file
 	uint8_t argumentTypeText[9][1024]; //the type of the argument
 	uint8_t argumentLocationIndexText[1024]; //0: block scope, 1: function scope, 2: program scope, other: found in the includedVariable file
 	uint8_t argumentText[9][1024]; //argument can be a variable or a literal
@@ -37,7 +38,7 @@ union ArgumentBinary {
 
 struct LineBinaryIntermediate {
 	uint64_t instructionTypeIndex; //the typeIndex of the instruction. see README.md
-	uint64_t argumentTypeLocationIndex; //0 means the argument type is local to the program, the other indices are found in the includedType file
+	uint64_t argumentTypeLocationIndex[9]; //0 means the argument type is local to the program, the other indices are found in the includedType file
 	uint64_t argumentTypeIndex[9]; //the typeIndex of the argument, within the list of types included from the location
 	uint64_t argumentLocationIndex[9]; //0: block scope, 1: function scope, 2: program scope, other: found in the includedVariable file
 	union ArgumentBinary argumentBinary[9]; //arguments can be a number of things. eg. literal, function 
@@ -47,7 +48,11 @@ struct LineBinaryIntermediate {
 
 uint8_t getLineBinaryIntermediateinstructionGroupTypeIndex0(uint8_t input) {
 	uint8_t returnValue = InstructionGroupType0_undefined;
-	if (input == (uint8_t)'~')
+	if (input == (uint8_t)'u')
+		returnValue = InstructionGroupType0_undefined;
+	else if (input == (uint8_t)'/')
+		returnValue = InstructionGroupType0_comment;
+	else if (input == (uint8_t)'~')
 		returnValue = InstructionGroupType0_exitFile;
 	else if (input == (uint8_t)'#')
 		returnValue = InstructionGroupType0_preprocessorDirective;
@@ -84,6 +89,7 @@ int main(int argc, char** argv) {
 		lineBinaryIntermediate.instructionGroupTypeIndex[0] = getLineBinaryIntermediateinstructionGroupTypeIndex0(lineText->instructionGroupTypeText[0]);
 		fread((void*)&lineText->instructionGroupTypeText[1], sizeof(uint8_t), 1, fileRead);
 		lineBinaryIntermediate.instructionGroupTypeIndex[1] = getLineBinaryIntermediateinstructionGroupTypeIndex1(lineText->instructionGroupTypeText[1]);
+		fseek(fileRead, sizeof(uint8_t), SEEK_CUR);
 		readVariableLengthText(fileRead, lineText->instructionTypeText);
 	}
 	free(lineText);
